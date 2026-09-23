@@ -21,6 +21,21 @@ test('login', async () => {
   expect(loginRes.body.user).toMatchObject(expectedUser);
 });
 
+test('logout failed due to no auth token', async () => {
+    const logoutRes = await request(app).delete('/api/auth');
+    expect(logoutRes.status).toBe(401);
+});
+
+test('logout successful', async () => {
+  const loginRes = await request(app).put('/api/auth').send(testUser);
+  const logoutRes = await request(app)
+    .delete('/api/auth')
+    .set('Authorization', `Bearer ${loginRes.body.token}`);
+
+  expect(logoutRes.status).toBe(200);
+  expect(logoutRes.body.message).toBe('logout successful');
+});
+
 function expectValidJwt(potentialJwt) {
   expect(potentialJwt).toMatch(/^[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*\.[a-zA-Z0-9\-_]*$/);
 }
