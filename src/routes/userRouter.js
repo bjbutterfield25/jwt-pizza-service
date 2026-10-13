@@ -80,6 +80,7 @@ userRouter.delete(
 // listUsers
 userRouter.get(
   '/',
+  authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
     res.json({});
   }),
