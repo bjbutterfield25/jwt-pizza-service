@@ -60,9 +60,18 @@ test('list users unauthorized', async () => {
 test('list users', async () => {
   const [, userToken] = await registerUser(request(app));
   const listUsersRes = await request(app)
-    .get('/api/user')
+    .get('/api/user?limit=100')
     .set('Authorization', 'Bearer ' + userToken);
+
   expect(listUsersRes.status).toBe(200);
+  expect(Array.isArray(listUsersRes.body.users)).toBe(true);
+  expect(listUsersRes.body.users.length).toBeGreaterThan(0);
+  expect(listUsersRes.body.users[0]).toEqual(expect.objectContaining({
+    id: expect.any(Number),
+    name: expect.any(String),
+    email: expect.any(String),
+    roles: expect.any(Array),
+  }));
 });
 
 async function registerUser(service) {
