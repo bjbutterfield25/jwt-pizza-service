@@ -84,7 +84,7 @@ userRouter.get(
   asyncHandler(async (req, res) => {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
-    const name = req.query.name || '*';
+    const name = typeof req.query.name === 'string' ? req.query.name : '*';
     const [users, more] = await DB.getUsers(page, limit, name);
     res.json({ users, more });
   }),

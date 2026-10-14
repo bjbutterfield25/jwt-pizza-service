@@ -79,7 +79,7 @@ class DB {
     const connection = await this.getConnection();
     try {
       const offset = (Number(page) - 1) * Number(limit);
-      const normalizedFilter = (nameFilter || '*').replace(/\*/g, '%');
+      const normalizedFilter = String(nameFilter ?? '*').replace(/\*/g, '%');
       let users = await this.query(connection, `SELECT id, name, email FROM user WHERE name LIKE ? LIMIT ${Number(limit) + 1} OFFSET ${offset}`, [normalizedFilter]);
 
       const more = users.length > Number(limit);

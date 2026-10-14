@@ -74,9 +74,26 @@ test('list users', async () => {
   }));
 });
 
-async function registerUser(service) {
+test('list users filters by name', async () => {
+  const uniqueName = `Filter-${Date.now()}`;
+  const [registeredUser, userToken] = await registerUser(request(app), uniqueName);
+  const listUsersRes = await request(app)
+    .get(`/api/user?name=${encodeURIComponent(uniqueName)}`)
+    .set('Authorization', 'Bearer ' + userToken);
+
+  expect(listUsersRes.status).toBe(200);
+  expect(listUsersRes.body.users).toEqual(expect.arrayContaining([
+    expect.objectContaining({
+      id: registeredUser.id,
+      name: uniqueName,
+      email: registeredUser.email,
+    }),
+  ]));
+});
+
+async function registerUser(service, customName = 'pizza diner') {
   const testUser = {
-    name: 'pizza diner',
+    name: customName,
     email: `${randomName()}@test.com`,
     password: 'a',
   };
