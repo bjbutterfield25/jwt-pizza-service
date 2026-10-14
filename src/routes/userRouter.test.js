@@ -1,5 +1,6 @@
 const request = require('supertest');
 const app = require('../service');
+const { DB, Role } = require('../database/database.js');
 
 const testUser = {
   name: 'pizza diner',
@@ -58,10 +59,11 @@ test('list users unauthorized', async () => {
 });
 
 test('list users', async () => {
-  const [, userToken] = await registerUser(request(app));
+  await registerUser(request(app));
+  const [, adminToken] = await registerAdmin(request(app));
   const listUsersRes = await request(app)
     .get('/api/user?limit=100')
-    .set('Authorization', 'Bearer ' + userToken);
+    .set('Authorization', 'Bearer ' + adminToken);
 
   expect(listUsersRes.status).toBe(200);
   expect(Array.isArray(listUsersRes.body.users)).toBe(true);
@@ -74,12 +76,22 @@ test('list users', async () => {
   }));
 });
 
+test('list users forbidden for a non-admin user', async () => {
+  const [, userToken] = await registerUser(request(app));
+  const listUsersRes = await request(app)
+    .get('/api/user')
+    .set('Authorization', `Bearer ${userToken}`);
+
+  expect(listUsersRes.status).toBe(403);
+});
+
 test('list users filters by name', async () => {
   const uniqueName = `Filter-${Date.now()}`;
-  const [registeredUser, userToken] = await registerUser(request(app), uniqueName);
+  const [registeredUser] = await registerUser(request(app), uniqueName);
+  const [, adminToken] = await registerAdmin(request(app));
   const listUsersRes = await request(app)
     .get(`/api/user?name=${encodeURIComponent(uniqueName)}`)
-    .set('Authorization', 'Bearer ' + userToken);
+    .set('Authorization', 'Bearer ' + adminToken);
 
   expect(listUsersRes.status).toBe(200);
   expect(listUsersRes.body.users).toEqual(expect.arrayContaining([
@@ -89,6 +101,28 @@ test('list users filters by name', async () => {
       email: registeredUser.email,
     }),
   ]));
+});
+
+test('list users is paginated', async () => {
+  const uniqueName = `Page-${Date.now()}`;
+  await registerUser(request(app), `${uniqueName}-one`);
+  await registerUser(request(app), `${uniqueName}-two`);
+  const [, adminToken] = await registerAdmin(request(app));
+
+  const firstPageRes = await request(app)
+    .get(`/api/user?page=1&limit=1&name=${encodeURIComponent(`${uniqueName}*`)}`)
+    .set('Authorization', `Bearer ${adminToken}`);
+  const secondPageRes = await request(app)
+    .get(`/api/user?page=2&limit=1&name=${encodeURIComponent(`${uniqueName}*`)}`)
+    .set('Authorization', `Bearer ${adminToken}`);
+
+  expect(firstPageRes.status).toBe(200);
+  expect(firstPageRes.body.users).toHaveLength(1);
+  expect(firstPageRes.body.more).toBe(true);
+  expect(secondPageRes.status).toBe(200);
+  expect(secondPageRes.body.users).toHaveLength(1);
+  expect(secondPageRes.body.more).toBe(false);
+  expect(firstPageRes.body.users[0].id).not.toBe(secondPageRes.body.users[0].id);
 });
 
 async function registerUser(service, customName = 'pizza diner') {
@@ -101,6 +135,18 @@ async function registerUser(service, customName = 'pizza diner') {
   registerRes.body.user.password = testUser.password;
 
   return [registerRes.body.user, registerRes.body.token];
+}
+
+async function registerAdmin(service) {
+  const admin = {
+    name: 'user list admin',
+    email: `admin-${randomName()}@test.com`,
+    password: 'a',
+    roles: [{ role: Role.Admin }],
+  };
+  await DB.addUser(admin);
+  const loginRes = await service.put('/api/auth').send({ email: admin.email, password: admin.password });
+  return [loginRes.body.user, loginRes.body.token];
 }
 
 function randomName() {
