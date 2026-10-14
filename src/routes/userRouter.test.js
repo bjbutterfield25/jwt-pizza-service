@@ -53,6 +53,43 @@ test('PUT /api/user/:userId updates the authenticated user', async () => {
   });
 });
 
+test('DELETE /api/user/:userId requires authentication', async () => {
+  const res = await request(app).delete(`/api/user/${userId}`);
+
+  expect(res.status).toBe(401);
+});
+
+test('DELETE /api/user/:userId lets an admin delete any user', async () => {
+  const [targetUser, targetToken] = await registerUser(request(app), `Delete-${Date.now()}`);
+  const [, adminToken] = await registerAdmin(request(app));
+
+  const deleteRes = await request(app)
+    .delete(`/api/user/${targetUser.id}`)
+    .set('Authorization', `Bearer ${adminToken}`);
+  const targetAuthRes = await request(app)
+    .get('/api/user/me')
+    .set('Authorization', `Bearer ${targetToken}`);
+
+  expect(deleteRes.status).toBe(200);
+  expect(deleteRes.body).toEqual({ message: 'user deleted' });
+  expect(targetAuthRes.status).toBe(401);
+});
+
+test('DELETE /api/user/:userId forbids non-admin users', async () => {
+  const [targetUser, targetToken] = await registerUser(request(app));
+  const [, dinerToken] = await registerUser(request(app));
+
+  const deleteRes = await request(app)
+    .delete(`/api/user/${targetUser.id}`)
+    .set('Authorization', `Bearer ${dinerToken}`);
+  const targetAuthRes = await request(app)
+    .get('/api/user/me')
+    .set('Authorization', `Bearer ${targetToken}`);
+
+  expect(deleteRes.status).toBe(403);
+  expect(targetAuthRes.status).toBe(200);
+});
+
 test('list users unauthorized', async () => {
   const listUsersRes = await request(app).get('/api/user');
   expect(listUsersRes.status).toBe(401);
