@@ -13,6 +13,11 @@ const methodTotals = {
   DELETE: 0,
 };
 
+const authenticationTotals = {
+  success: 0,
+  failure: 0,
+};
+
 function userLoggedIn(userId) {
   activeUsers.set(String(userId), Date.now());
 }
@@ -126,6 +131,8 @@ function collectMetrics() {
   metrics.push(createMetric('http_requests_put_total', methodTotals.PUT, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('http_requests_delete_total', methodTotals.DELETE, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('active_users', getActiveUserCount(), '1', 'sum', 'asInt', {}, false));
+  metrics.push(createMetric('authentication_success_total', authenticationTotals.success, '1', 'sum', 'asInt', {}));
+  metrics.push(createMetric('authentication_failure_total', authenticationTotals.failure, '1', 'sum', 'asInt', {}));
 
   sendMetricToGrafana(metrics);
 }
@@ -134,6 +141,14 @@ function startMetrics(intervalMs = 10000) {
   const timer = setInterval(collectMetrics, intervalMs);
   if (typeof timer.unref === 'function') timer.unref();
   return timer;
+}
+
+function authenticationSucceeded() {
+  authenticationTotals.success += 1;
+}
+
+function authenticationFailed() {
+  authenticationTotals.failure += 1;
 }
 
 module.exports = {
@@ -148,4 +163,7 @@ module.exports = {
   userLoggedOut,
   userActivity,
   getActiveUserCount,
+  authenticationTotals,
+  authenticationSucceeded,
+  authenticationFailed,
 };
