@@ -8,9 +8,9 @@ const config = require('./config.js');
 const { requestTracker } = require('./metrics.js');
 
 const app = express();
-app.use(requestTracker);
 app.use(express.json());
 app.use(setAuthUser);
+app.use(requestTracker);
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');

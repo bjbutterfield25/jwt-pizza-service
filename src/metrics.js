@@ -2,6 +2,8 @@ const config = require('./config.js');
 
 // Metrics stored in memory
 const requests = {};
+const activeUsers = new Map();
+const ACTIVE_USER_WINDOW_MS = 15 * 60 * 1000;
 
 const methodTotals = {
   total: 0,
@@ -10,6 +12,28 @@ const methodTotals = {
   PUT: 0,
   DELETE: 0,
 };
+
+function userLoggedIn(userId) {
+  activeUsers.set(String(userId), Date.now());
+}
+
+function userLoggedOut(userId) {
+  activeUsers.delete(String(userId));
+}
+
+function userActivity(userId) {
+  if (userId != null) {
+    activeUsers.set(String(userId), Date.now());
+  }
+}
+
+function getActiveUserCount() {
+  const cutoff = Date.now() - ACTIVE_USER_WINDOW_MS;
+  for (const [userId, lastActivity] of activeUsers) {
+    if (lastActivity < cutoff) activeUsers.delete(userId);
+  }
+  return activeUsers.size;
+}
 
 // Middleware to track requests
 function requestTracker(req, res, next) {
@@ -21,10 +45,14 @@ function requestTracker(req, res, next) {
     methodTotals[req.method] += 1;
   }
 
+  if (req.user?.id != null) {
+    userActivity(req.user.id);
+  }
+
   next();
 }
 
-function createMetric(metricName, metricValue, metricUnit, metricType, valueType, attributes = {}) {
+function createMetric(metricName, metricValue, metricUnit, metricType, valueType, attributes = {}, isMonotonic = true) {
   const source = config.metrics?.source ?? config.source;
   const metricAttributes = { ...attributes, source };
 
@@ -49,7 +77,7 @@ function createMetric(metricName, metricValue, metricUnit, metricType, valueType
 
   if (metricType === 'sum') {
     metric[metricType].aggregationTemporality = 2;
-    metric[metricType].isMonotonic = true;
+    metric[metricType].isMonotonic = isMonotonic;
   }
 
   return metric;
@@ -97,6 +125,7 @@ function collectMetrics() {
   metrics.push(createMetric('http_requests_post_total', methodTotals.POST, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('http_requests_put_total', methodTotals.PUT, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('http_requests_delete_total', methodTotals.DELETE, '1', 'sum', 'asInt', {}));
+  metrics.push(createMetric('active_users', getActiveUserCount(), '1', 'sum', 'asInt', {}, false));
 
   sendMetricToGrafana(metrics);
 }
@@ -115,4 +144,8 @@ module.exports = {
   startMetrics,
   requests,
   methodTotals,
+  userLoggedIn,
+  userLoggedOut,
+  userActivity,
+  getActiveUserCount,
 };
