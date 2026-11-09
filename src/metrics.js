@@ -1,3 +1,4 @@
+const os = require('os');
 const config = require('./config.js');
 
 // Metrics stored in memory
@@ -30,6 +31,16 @@ const pendingEndpointLatency = [];
 const pendingPizzaLatency = [];
 let metricsSending = false;
 let lastLatencyTimestamp = 0n;
+
+function getCpuLoadPercentage() {
+  return (os.loadavg()[0] / os.cpus().length) * 100;
+}
+
+function getMemoryUsagePercentage() {
+  const totalMemory = os.totalmem();
+  const freeMemory = os.freemem();
+  return ((totalMemory - freeMemory) / totalMemory) * 100;
+}
 
 function createLatencyTotals() {
   return {
@@ -212,6 +223,8 @@ function collectMetrics() {
   metrics.push(createMetric('pizzas_sold_total', orderTotals.pizzasSold, '{pizza}', 'sum', 'asInt', {}));
   metrics.push(createMetric('pizza_creation_failures_total', orderTotals.creationFailures, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('revenue_total', orderTotals.revenue, 'BTC', 'sum', 'asDouble', {}));
+  metrics.push(createMetric('system_cpu_load_percent', getCpuLoadPercentage(), '%', 'gauge', 'asDouble', {}));
+  metrics.push(createMetric('system_memory_usage_percent', getMemoryUsagePercentage(), '%', 'gauge', 'asDouble', {}));
   if (endpointSampleCount) {
     metrics.push(createLatencyGauge('http_server_request_duration_seconds', pendingEndpointLatency.slice(0, endpointSampleCount)));
   }
@@ -248,6 +261,8 @@ function authenticationFailed() {
 module.exports = {
   requestTracker,
   createMetric,
+  getCpuLoadPercentage,
+  getMemoryUsagePercentage,
   sendMetricToGrafana,
   collectMetrics,
   startMetrics,
