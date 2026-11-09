@@ -3,7 +3,7 @@ const config = require('../config.js');
 const { Role, DB } = require('../database/database.js');
 const { authRouter } = require('./authRouter.js');
 const { asyncHandler, StatusCodeError } = require('../endpointHelper.js');
-const { collectMetrics, recordSuccessfulOrder, recordOrderCreationFailure } = require('../metrics.js');
+const { collectMetrics, recordSuccessfulOrder, recordOrderCreationFailure, recordPizzaCreationDuration } = require('../metrics.js');
 
 const orderRouter = express.Router();
 
@@ -78,6 +78,7 @@ orderRouter.post(
   '/',
   authRouter.authenticateToken,
   asyncHandler(async (req, res) => {
+    const startedAt = process.hrtime.bigint();
     try {
       const orderReq = req.body;
       const order = await DB.addDinerOrder(req.user, orderReq);
@@ -89,17 +90,18 @@ orderRouter.post(
       const j = await r.json();
       if (r.ok) {
         recordSuccessfulOrder(order.items);
-        collectMetrics();
         res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
       } else {
         recordOrderCreationFailure();
-        collectMetrics();
         res.status(500).send({ message: 'Failed to fulfill order at factory', followLinkToEndChaos: j.reportUrl });
       }
     } catch (error) {
       recordOrderCreationFailure();
-      collectMetrics();
       throw error;
+    } finally {
+      const durationSeconds = Number(process.hrtime.bigint() - startedAt) / 1e9;
+      recordPizzaCreationDuration(durationSeconds);
+      collectMetrics();
     }
   })
 );

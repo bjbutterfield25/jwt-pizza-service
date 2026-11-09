@@ -1,6 +1,6 @@
 const request = require('supertest');
 const app = require('../service');
-const { orderTotals } = require('../metrics.js');
+const { orderTotals, pizzaCreationLatency } = require('../metrics.js');
 const { DB, Role } = require('../database/database.js');
 
 const diner = {
@@ -82,6 +82,7 @@ test('GET /api/order rejects requests without authentication', async () => {
 
 test('POST /api/order creates an order and returns the factory result', async () => {
   const previousTotals = { ...orderTotals };
+  const previousLatencyCount = pizzaCreationLatency.count;
   const reportUrl = 'https://factory.test/report/123';
   jest.spyOn(global, 'fetch').mockResolvedValue({
     ok: true,
@@ -110,6 +111,7 @@ test('POST /api/order creates an order and returns the factory result', async ()
   );
   expect(orderTotals.pizzasSold).toBe(previousTotals.pizzasSold + orderRequest.items.length);
   expect(orderTotals.revenue).toBe(previousTotals.revenue + menuItem.price);
+  expect(pizzaCreationLatency.count).toBe(previousLatencyCount + 1);
 });
 
 test('POST /api/order rejects requests without authentication', async () => {
@@ -121,6 +123,7 @@ test('POST /api/order rejects requests without authentication', async () => {
 
 test('POST /api/order reports a factory fulfillment failure', async () => {
   const previousTotals = { ...orderTotals };
+  const previousLatencyCount = pizzaCreationLatency.count;
   const reportUrl = 'https://factory.test/report/failure';
   jest.spyOn(global, 'fetch').mockResolvedValue({
     ok: false,
@@ -144,4 +147,5 @@ test('POST /api/order reports a factory fulfillment failure', async () => {
   expect(orderTotals.creationFailures).toBe(previousTotals.creationFailures + 1);
   expect(orderTotals.pizzasSold).toBe(previousTotals.pizzasSold);
   expect(orderTotals.revenue).toBe(previousTotals.revenue);
+  expect(pizzaCreationLatency.count).toBe(previousLatencyCount + 1);
 });
