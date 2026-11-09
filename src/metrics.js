@@ -18,6 +18,21 @@ const authenticationTotals = {
   failure: 0,
 };
 
+const orderTotals = {
+  pizzasSold: 0,
+  creationFailures: 0,
+  revenue: 0,
+};
+
+function recordSuccessfulOrder(items) {
+  orderTotals.pizzasSold += items.length;
+  orderTotals.revenue += items.reduce((total, item) => total + Number(item.price || 0), 0);
+}
+
+function recordOrderCreationFailure() {
+  orderTotals.creationFailures += 1;
+}
+
 function userLoggedIn(userId) {
   activeUsers.set(String(userId), Date.now());
 }
@@ -133,6 +148,9 @@ function collectMetrics() {
   metrics.push(createMetric('active_users', getActiveUserCount(), '1', 'sum', 'asInt', {}, false));
   metrics.push(createMetric('authentication_success_total', authenticationTotals.success, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('authentication_failure_total', authenticationTotals.failure, '1', 'sum', 'asInt', {}));
+  metrics.push(createMetric('pizzas_sold_total', orderTotals.pizzasSold, '{pizza}', 'sum', 'asInt', {}));
+  metrics.push(createMetric('pizza_creation_failures_total', orderTotals.creationFailures, '1', 'sum', 'asInt', {}));
+  metrics.push(createMetric('revenue_total', orderTotals.revenue, 'BTC', 'sum', 'asDouble', {}));
 
   sendMetricToGrafana(metrics);
 }
@@ -166,4 +184,7 @@ module.exports = {
   authenticationTotals,
   authenticationSucceeded,
   authenticationFailed,
+  orderTotals,
+  recordSuccessfulOrder,
+  recordOrderCreationFailure,
 };
