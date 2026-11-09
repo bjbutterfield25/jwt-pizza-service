@@ -24,7 +24,7 @@ const orderTotals = {
   revenue: 0,
 };
 
-const endpointLatency = new Map();
+const requestLatency = createLatencyTotals();
 const pizzaCreationLatency = createLatencyTotals();
 const pendingEndpointLatency = [];
 const pendingPizzaLatency = [];
@@ -48,13 +48,6 @@ function recordLatency(totals, durationSeconds, pendingSamples, attributes = {})
     timeUnixNano: String(lastLatencyTimestamp),
     attributes,
   });
-}
-
-function getEndpointLatency(endpoint) {
-  if (!endpointLatency.has(endpoint)) {
-    endpointLatency.set(endpoint, createLatencyTotals());
-  }
-  return endpointLatency.get(endpoint);
 }
 
 function recordSuccessfulOrder(items) {
@@ -99,10 +92,8 @@ function requestTracker(req, res, next) {
   const startedAt = process.hrtime.bigint();
 
   res.once('finish', () => {
-    const routePath = req.route?.path ? `${req.baseUrl}${req.route.path}` : req.path;
-    const route = `[${req.method}] ${routePath}`;
     const durationSeconds = Number(process.hrtime.bigint() - startedAt) / 1e9;
-    recordLatency(getEndpointLatency(route), durationSeconds, pendingEndpointLatency, { endpoint: route });
+    recordLatency(requestLatency, durationSeconds, pendingEndpointLatency);
   });
 
   methodTotals.total += 1;
@@ -272,7 +263,7 @@ module.exports = {
   orderTotals,
   recordSuccessfulOrder,
   recordOrderCreationFailure,
-  endpointLatency,
+  requestLatency,
   pizzaCreationLatency,
   recordPizzaCreationDuration,
 };
