@@ -124,6 +124,7 @@ test('POST /api/order rejects requests without authentication', async () => {
 test('POST /api/order reports a factory fulfillment failure', async () => {
   const previousTotals = { ...orderTotals };
   const previousLatencyCount = pizzaCreationLatency.count;
+  const failedPizzaCount = 20;
   const reportUrl = 'https://factory.test/report/failure';
   jest.spyOn(global, 'fetch').mockResolvedValue({
     ok: false,
@@ -136,7 +137,11 @@ test('POST /api/order reports a factory fulfillment failure', async () => {
     .send({
       franchiseId: 1,
       storeId: 1,
-      items: [{ menuId: menuItemId, description: menuItem.title, price: menuItem.price }],
+      items: Array.from({ length: failedPizzaCount }, () => ({
+        menuId: menuItemId,
+        description: menuItem.title,
+        price: menuItem.price,
+      })),
     });
 
   expect(res.status).toBe(500);
@@ -145,6 +150,7 @@ test('POST /api/order reports a factory fulfillment failure', async () => {
     followLinkToEndChaos: reportUrl,
   });
   expect(orderTotals.creationFailures).toBe(previousTotals.creationFailures + 1);
+  expect(orderTotals.pizzasFailedCreation).toBe(previousTotals.pizzasFailedCreation + failedPizzaCount);
   expect(orderTotals.pizzasSold).toBe(previousTotals.pizzasSold);
   expect(orderTotals.revenue).toBe(previousTotals.revenue);
   expect(pizzaCreationLatency.count).toBe(previousLatencyCount + 1);

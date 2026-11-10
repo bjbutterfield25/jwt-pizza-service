@@ -22,6 +22,7 @@ const authenticationTotals = {
 const orderTotals = {
   pizzasSold: 0,
   creationFailures: 0,
+  pizzasFailedCreation: 0,
   revenue: 0,
 };
 
@@ -66,8 +67,9 @@ function recordSuccessfulOrder(items) {
   orderTotals.revenue += items.reduce((total, item) => total + Number(item.price || 0), 0);
 }
 
-function recordOrderCreationFailure() {
+function recordOrderCreationFailure(pizzaCount = 0) {
   orderTotals.creationFailures += 1;
+  orderTotals.pizzasFailedCreation += pizzaCount;
 }
 
 function recordPizzaCreationDuration(durationSeconds) {
@@ -222,6 +224,7 @@ function collectMetrics() {
   metrics.push(createMetric('authentication_failure_total', authenticationTotals.failure, '1', 'sum', 'asInt', {}));
   metrics.push(createMetric('pizzas_sold_total', orderTotals.pizzasSold, '{pizza}', 'sum', 'asInt', {}));
   metrics.push(createMetric('pizza_creation_failures_total', orderTotals.creationFailures, '1', 'sum', 'asInt', {}));
+  metrics.push(createMetric('pizzas_failed_creation_total', orderTotals.pizzasFailedCreation, '{pizza}', 'sum', 'asInt', {}));
   metrics.push(createMetric('revenue_total', orderTotals.revenue, 'BTC', 'sum', 'asDouble', {}));
   metrics.push(createMetric('system_cpu_load_percent', getCpuLoadPercentage(), '%', 'gauge', 'asDouble', {}));
   metrics.push(createMetric('system_memory_usage_percent', getMemoryUsagePercentage(), '%', 'gauge', 'asDouble', {}));

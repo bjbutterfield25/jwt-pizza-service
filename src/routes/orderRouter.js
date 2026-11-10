@@ -92,11 +92,11 @@ orderRouter.post(
         recordSuccessfulOrder(order.items);
         res.send({ order, followLinkToEndChaos: j.reportUrl, jwt: j.jwt });
       } else {
-        recordOrderCreationFailure();
+        recordOrderCreationFailure(order.items.length);
         res.status(500).send({ message: 'Failed to fulfill order at factory', followLinkToEndChaos: j.reportUrl });
       }
     } catch (error) {
-      recordOrderCreationFailure();
+      recordOrderCreationFailure(Array.isArray(req.body.items) ? req.body.items.length : 0);
       throw error;
     } finally {
       const durationSeconds = Number(process.hrtime.bigint() - startedAt) / 1e9;
